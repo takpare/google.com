@@ -492,6 +492,179 @@ else
    end
 end
 
+local function pre_process(msg)
+	if msg.to.type ~= 'pv' then
+		local hash = "gp_lang:"..msg.to.id
+		local lang = redis:get(hash)
+		local data = load_data(_config.moderation.data)
+		local gpst = data[tostring(msg.to.id)]
+		local chex = redis:get('CheckExpire::'..msg.to.id)
+		local exd = redis:get('ExpireDate:'..msg.to.id)
+		if gpst and not chex and msg.from.id ~= SUDO and not is_sudo(msg) then
+			redis:set('CheckExpire::'..msg.to.id,true)
+			redis:set('ExpireDate:'..msg.to.id,true)
+			redis:setex('ExpireDate:'..msg.to.id, 86400, true)
+			if lang then
+				tdcli.sendMessage(msg.to.id, msg.id_, 1, '_گروه به مدت 1 روز شارژ شد. لطفا با سودو برای شارژ بیشتر تماس بگیرید. در غیر اینصورت گروه شما از لیست ربات حذف و ربات گروه را ترک خواهد کرد._', 1, 'md')
+			else
+				tdcli.sendMessage(msg.to.id, msg.id_, 1, '_Group charged 1 day. to recharge the robot contact with the sudo. With the completion of charging time, the group removed from the robot list and the robot will leave the group._', 1, 'md')
+			end
+		end
+		if chex and not exd and msg.from.id ~= SUDO and not is_sudo(msg) then
+			local text1 = 'شارژ این گروه به اتمام رسید \n\nID:  <code>'..msg.to.id..'</code>\n\nدر صورتی که میخواهید ربات این گروه را ترک کند از دستور زیر استفاده کنید\n\n/leave '..msg.to.id..'\nبرای جوین دادن توی این گروه میتونی از دستور زیر استفاده کنی:\n/jointo '..msg.to.id..'\n_________________\nدر صورتی که میخواهید گروه رو دوباره شارژ کنید میتوانید از کد های زیر استفاده کنید...\n\n<b>برای شارژ 1 ماهه:</b>\n/plan 1 '..msg.to.id..'\n\n<b>برای شارژ 3 ماهه:</b>\n/plan 2 '..msg.to.id..'\n\n<b>برای شارژ نامحدود:</b>\n/plan 3 '..msg.to.id
+			local text2 = '_شارژ این گروه به پایان رسید. به دلیل عدم شارژ مجدد، گروه از لیست ربات حذف و ربات از گروه خارج میشود._'
+			local text3 = '_Charging finished._\n\n*Group ID:*\n\n*ID:* `'..msg.to.id..'`\n\n*If you want the robot to leave this group use the following command:*\n\n`/Leave '..msg.to.id..'`\n\n*For Join to this group, you can use the following command:*\n\n`/Jointo '..msg.to.id..'`\n\n_________________\n\n_If you want to recharge the group can use the following code:_\n\n*To charge 1 month:*\n\n`/Plan 1 '..msg.to.id..'`\n\n*To charge 3 months:*\n\n`/Plan 2 '..msg.to.id..'`\n\n*For unlimited charge:*\n\n`/Plan 3 '..msg.to.id..'`'
+			local text4 = '_Charging finished. Due to lack of recharge remove the group from the robot list and the robot leave the group._'
+			if lang then
+				tdcli.sendMessage(SUDO, 0, 1, text1, 1, 'html')
+				tdcli.sendMessage(msg.to.id, 0, 1, text2, 1, 'md')
+			else
+				tdcli.sendMessage(SUDO, 0, 1, text3, 1, 'md')
+				tdcli.sendMessage(msg.to.id, 0, 1, text4, 1, 'md')
+			end
+			botrem(msg)
+		else
+			local expiretime = redis:ttl('ExpireDate:'..msg.to.id)
+			local day = (expiretime / 86400)
+			if tonumber(day) > 0.208 and not is_sudo(msg) and is_mod(msg) then
+				warning(msg)
+			end
+		end
+	end
+end
+
+local function run(msg, matches)
+local hash = "gp_lang:"..msg.to.id
+local lang = redis:get(hash)
+local Chash = "cmd_lang:"..msg.to.id
+local Clang = redis:get(Chash)
+ if tonumber(msg.from.id) == SUDO then
+if ((matches[1] == "clear cache" and not Clang) or (matches[1] == "پاک کردن حافظه" and Clang)) then
+     run_bash("rm -rf ~/.telegram-cli/data/sticker/*")
+     run_bash("rm -rf ~/.telegram-cli/data/photo/*")
+     run_bash("rm -rf ~/.telegram-cli/data/animation/*")
+     run_bash("rm -rf ~/.telegram-cli/data/video/*")
+     run_bash("rm -rf ~/.telegram-cli/data/audio/*")
+     run_bash("rm -rf ~/.telegram-cli/data/voice/*")
+     run_bash("rm -rf ~/.telegram-cli/data/temp/*")
+     run_bash("rm -rf ~/.telegram-cli/data/thumb/*")
+     run_bash("rm -rf ~/.telegram-cli/data/document/*")
+     run_bash("rm -rf ~/.telegram-cli/data/profile_photo/*")
+     run_bash("rm -rf ~/.telegram-cli/data/encrypted/*")
+	 run_bash("rm -rf ./data/photos/*")
+    return "*All Cache Has Been Cleared*"
+   end
+if ((matches[1] == "visudo" and not Clang) or (matches[1] == "سودو" and Clang)) then
+if not matches[2] and msg.reply_id then
+    tdcli_function ({
+      ID = "GetMessage",
+      chat_id_ = msg.to.id,
+      message_id_ = msg.reply_id
+    }, action_by_reply, {chat_id=msg.to.id,cmd="visudo"})
+  end
+  if matches[2] and string.match(matches[2], '^%d+$') then
+tdcli_function ({
+    ID = "GetUser",
+    user_id_ = matches[2],
+  }, action_by_id, {chat_id=msg.to.id,user_id=matches[2],cmd="visudo"})
+    end
+  if matches[2] and not string.match(matches[2], '^%d+$') then
+   tdcli_function ({
+      ID = "SearchPublicChat",
+      username_ = matches[2]
+    }, action_by_username, {chat_id=msg.to.id,username=matches[2],cmd="visudo"})
+      end
+   end
+if ((matches[1] == "desudo" and not Clang) or (matches[1] == "حذف سودو" and Clang)) then
+if not matches[2] and msg.reply_id then
+    tdcli_function ({
+      ID = "GetMessage",
+      chat_id_ = msg.to.id,
+      message_id_ = msg.reply_id
+    }, action_by_reply, {chat_id=msg.to.id,cmd="desudo"})
+  end
+  if matches[2] and string.match(matches[2], '^%d+$') then
+tdcli_function ({
+    ID = "GetUser",
+    user_id_ = matches[2],
+  }, action_by_id, {chat_id=msg.to.id,user_id=matches[2],cmd="desudo"})
+    end
+  if matches[2] and not string.match(matches[2], '^%d+$') then
+   tdcli_function ({
+      ID = "SearchPublicChat",
+      username_ = matches[2]
+    }, action_by_username, {chat_id=msg.to.id,username=matches[2],cmd="desudo"})
+      end
+   end
+end
+		if ((matches[1] == "config" and not Clang) or (matches[1] == "پیکربندی" and Clang)) and is_admin(msg) then
+			return set_config(msg)
+		end
+if is_sudo(msg) then
+   		if ((matches[1]:lower() == 'add' and not Clang) or (matches[1] == "افزودن" and Clang)) and not redis:get('ExpireDate:'..msg.to.id) then
+			redis:set('ExpireDate:'..msg.to.id,true)
+			redis:setex('ExpireDate:'..msg.to.id, 180, true)
+				if not redis:get('CheckExpire::'..msg.to.id) then
+					redis:set('CheckExpire::'..msg.to.id,true)
+				end
+				if lang then
+					tdcli.sendMessage(msg.to.id, msg.id_, 1, '_گروه به مدت 3 دقیقه برای اجرای تنظیمات شارژ میباشد._', 1, 'md')
+				else
+					tdcli.sendMessage(msg.to.id, msg.id_, 1, '_Group charged 3 minutes  for settings._', 1, 'md')
+				end
+		end
+		if ((matches[1] == 'rem' and not Clang) or (matches[1] == "حذف گروه" and Clang)) then
+			if redis:get('CheckExpire::'..msg.to.id) then
+				redis:del('CheckExpire::'..msg.to.id)
+			end
+			redis:del('ExpireDate:'..msg.to.id)
+		end
+		if ((matches[1]:lower() == 'gid' and not Clang) or (matches[1] == "اطلاعات" and Clang)) then
+			tdcli.sendMessage(msg.to.id, msg.id_, 1, '`'..msg.to.id..'`', 1,'md')
+		end
+		if ((matches[1] == 'leave' and not Clang) or (matches[1] == "خروج" and Clang)) and matches[2] then
+			if lang then
+				tdcli.sendMessage(matches[2], 0, 1, 'ربات با دستور سودو از گروه خارج شد.\nبرای اطلاعات بیشتر با سودو تماس بگیرید.', 1, 'md')
+				tdcli.changeChatMemberStatus(matches[2], our_id, 'Left', dl_cb, nil)
+				tdcli.sendMessage(SUDO, msg.id_, 1, 'ربات با موفقیت از گروه '..matches[2]..' خارج شد.', 1,'md')
+			else
+				tdcli.sendMessage(matches[2], 0, 1, '_Robot left the group._\n*For more information contact The SUDO.*', 1, 'md')
+				tdcli.changeChatMemberStatus(matches[2], our_id, 'Left', dl_cb, nil)
+				tdcli.sendMessage(SUDO, msg.id_, 1, '*Robot left from under group successfully:*\n\n`'..matches[2]..'`', 1,'md')
+			end
+		end
+		if ((matches[1]:lower() == 'charge' and not Clang) or (matches[1] == "شارژ" and Clang)) and matches[2] and matches[3] then
+		if string.match(matches[2], '^-%d+$') then
+			if tonumber(matches[3]) > 0 and tonumber(matches[3]) < 1001 then
+				local extime = (tonumber(matches[3]) * 86400)
+				redis:setex('ExpireDate:'..matches[2], extime, true)
+				if not redis:get('CheckExpire::'..msg.to.id) then
+					redis:set('CheckExpire::'..msg.to.id,true)
+				end
+				if lang then
+					tdcli.sendMessage(SUDO, 0, 1, 'ربات در گروه '..matches[2]..' به مدت '..matches[3]..' روز تمدید گردید.', 1, 'md')
+					tdcli.sendMessage(matches[2], 0, 1, 'ربات توسط ادمین به مدت `'..matches[3]..'` روز شارژ شد\nبرای مشاهده زمان شارژ گروه دستور /check استفاده کنید...',1 , 'md')
+				else
+					tdcli.sendMessage(SUDO, 0, 1, '*Recharged successfully in the group:* `'..matches[2]..'`\n_Expire Date:_ `'..matches[3]..'` *Day(s)*', 1, 'md')
+					tdcli.sendMessage(matches[2], 0, 1, '*Robot recharged* `'..matches[3]..'` *day(s)*\n*For checking expire date, send* `/check`',1 , 'md')
+				end
+			else
+				if lang then
+					tdcli.sendMessage(msg.to.id, msg.id_, 1, '_تعداد روزها باید عددی از 1 تا 1000 باشد._', 1, 'md')
+				else
+					tdcli.sendMessage(msg.to.id, msg.id_, 1, '_Expire days must be between 1 - 1000_', 1, 'md')
+				end
+			end
+		end
+		end
+		if ((matches[1]:lower() == 'plan' and not Clang) or (matches[1] == "پلن" and Clang)) then 
+		if matches[2] == '1' and matches[3] then
+		if string.match(matches[3], '^-%d+$') then
+			local timeplan1 = 2592000
+			redis:setex('ExpireDate:'..matches[3], timeplan1, true)
+			if not redis:get('CheckExpire::'..msg.to.id) then
+				redis:set('CheckExpire::'..msg.to.id,true)
+			end
 			if lang then
 				tdcli.sendMessage(SUDO, msg.id_, 1, 'پلن 1 با موفقیت برای گروه '..matches[3]..' فعال شد\nاین گروه تا 30 روز دیگر اعتبار دارد! ( 1 ماه )', 1, 'md')
 				tdcli.sendMessage(matches[3], 0, 1, '_ربات با موفقیت فعال شد و تا 30 روز دیگر اعتبار دارد!_', 1, 'md')
